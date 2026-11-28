@@ -18,6 +18,136 @@
 
 
 
+    <!-- Smooth Inertia Scroll (HTML + CSS + JS) -->
+<div class="smooth-scroll-bar" aria-hidden="true">
+  <span id="smooth-scroll-fill"></span>
+</div>
+
+<style>
+  /* Native scrollbar hide + smooth JS inertia without CSS conflict */
+  html,
+  body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .smooth-scroll-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    z-index: 9998;
+    pointer-events: none;
+    background: transparent;
+  }
+
+  #smooth-scroll-fill {
+    display: block;
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(250, 243, 239, 0.35), #faf3ef);
+    transition: width 0.08s linear;
+  }
+</style>
+
+<script>
+  (() => {
+    // Touch/mobile screens use native 120Hz momentum; apply custom inertia on mouse/trackpad wheel
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    let currentY = window.scrollY;
+    let targetY = window.scrollY;
+    let rafId = 0;
+    let isAnimating = false;
+    const ease = 0.095; // Lower = smoother/heavier (0.07 - 0.14 recommended)
+    const fillEl = document.getElementById('smooth-scroll-fill');
+
+    function updateProgress() {
+      if (!fillEl) return;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = maxScroll > 0 ? Math.min(100, Math.max(0, (window.scrollY / maxScroll) * 100)) : 0;
+      fillEl.style.width = pct.toFixed(2) + '%';
+    }
+
+    function step() {
+      const diff = targetY - currentY;
+      currentY += diff * ease;
+
+      if (Math.abs(diff) < 0.45) {
+        currentY = targetY;
+        window.scrollTo({ top: currentY, behavior: 'instant' });
+        isAnimating = false;
+        rafId = 0;
+        updateProgress();
+        return;
+      }
+
+      window.scrollTo({ top: currentY, behavior: 'instant' });
+      updateProgress();
+      rafId = requestAnimationFrame(step);
+    }
+
+    window.addEventListener(
+      'wheel',
+      (e) => {
+        if (e.ctrlKey) return;
+        if (e.target && e.target.closest('.modal-card, [role="dialog"], textarea, select')) return;
+
+        e.preventDefault();
+
+        let delta = e.deltaY;
+        if (e.deltaMode === 1) delta *= 32;
+        else if (e.deltaMode === 2) delta *= window.innerHeight;
+
+        const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        if (!isAnimating) {
+          currentY = window.scrollY;
+          targetY = window.scrollY;
+        }
+
+        targetY = Math.min(maxScroll, Math.max(0, targetY + delta));
+
+        if (!isAnimating) {
+          isAnimating = true;
+          rafId = requestAnimationFrame(step);
+        }
+      },
+      { passive: false }
+    );
+
+    // Sync state on anchor clicks, hash sub-page changes, or keyboard scroll
+    window.addEventListener(
+      'scroll',
+      () => {
+        if (!isAnimating) {
+          currentY = window.scrollY;
+          targetY = window.scrollY;
+        }
+        updateProgress();
+      },
+      { passive: true }
+    );
+
+    window.addEventListener('hashchange', () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      isAnimating = false;
+      currentY = window.scrollY;
+      targetY = window.scrollY;
+      updateProgress();
+    });
+
+    updateProgress();
+  })();
+</script>
 
  
     
